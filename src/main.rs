@@ -54,15 +54,8 @@ fn get_all_files_with_query(file_path_list: &[String], query: &str) -> Vec<Strin
         let reader = BufReader::new(file);
         let mut index = 0;
         for line in reader.lines() {
-            let line = line.expect("Error reading line");
-            if !line.contains(query) {
-                continue;
-            }
+            collect_lines(&mut string_file, &line.unwrap_or_else(|err|String::new()), query, index);
             index += 1;
-            string_file.push(LineNr {
-                line: line.clone(),
-                number: index,
-            });
         }
         string_file_list.push(StringFile {
             path : file_path.clone(),
@@ -70,6 +63,16 @@ fn get_all_files_with_query(file_path_list: &[String], query: &str) -> Vec<Strin
         })
     }
     string_file_list
+}
+
+fn collect_lines(string_file: &mut Vec<LineNr>, line: &String, query: &str, index: usize) {
+    if !line.contains(query) {
+        return;
+    }
+    string_file.push(LineNr {
+        line: line.clone(),
+        number: index,
+    });
 }
 
 fn get_all_files(path: &str) -> Vec<String> {
