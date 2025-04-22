@@ -12,13 +12,13 @@ fn get_command() -> (String, String) {
     let args: Vec<String> = args().collect();
     if args.len() < 3 {
         println!("Usage: {} <path> <query>", args[0]);
-        return;
+        std::process::exit(1);
     }
     let path = &args[1];
     let query = &args[2];
     if path.is_empty() || query.is_empty() {
         println!("Path and query cannot be empty");
-        return;
+        std::process::exit(1);
     }
     (path.to_string(), query.to_string())
 }
