@@ -30,10 +30,9 @@ fn mock_get_command() -> (String, String) {
 }
 
 fn main() {
-    //let (path, query) = get_command();
+    // let (path, query) = get_command();
     let (path, query) = mock_get_command();
-    let all_file = get_all_files(&path);
-    let files_with_query = get_all_files_with_query(&all_file, &query);
+    let files_with_query = get_all_files(&path, &query);
     print_files(&files_with_query);
 }
 
@@ -46,27 +45,23 @@ fn print_files(files: &[StringFile]) {
     }
 }
 
-fn get_all_files_with_query(file_path_list: &[String], query: &str) -> Vec<StringFile> {
-    let mut string_file_list: Vec<StringFile> = Vec::new();
-    for file_path in file_path_list {
-        let mut string_file : Vec<LineNr> = Vec::new();
-        let file = File::open(&file_path).expect("File not found");
-        let reader = BufReader::new(file);
-        let mut index = 0;
-        for line in reader.lines() {
-            collect_lines(&mut string_file, &line.unwrap_or_else(|err|String::new()), query, index);
-            index += 1;
-        }
-        string_file_list.push(StringFile {
-            path : file_path.clone(),
-            contents: string_file,
-        })
+fn get_all_lines_with_query(file_path: &String, query: &str, string_file_list: &mut Vec<StringFile>) {
+    let mut string_file: Vec<LineNr> = Vec::new();
+    let file = File::open(&file_path).expect("File not found");
+    let reader = BufReader::new(file);
+    let mut index = 0;
+    for line in reader.lines() {
+        collect_lines(&mut string_file, &line.unwrap_or_else(|err| String::new()), query, index);
+        index += 1;
     }
-    string_file_list
+    string_file_list.push(StringFile {
+        path: file_path.clone(),
+        contents: string_file,
+    })
 }
 
 fn collect_lines(string_file: &mut Vec<LineNr>, line: &String, query: &str, index: usize) {
-    if !line.contains(query) {
+    if !line.to_lowercase().contains(query.to_lowercase().as_str()) {
         return;
     }
     string_file.push(LineNr {
@@ -75,22 +70,13 @@ fn collect_lines(string_file: &mut Vec<LineNr>, line: &String, query: &str, inde
     });
 }
 
-fn get_all_files(path: &str) -> Vec<String> {
-    WalkDir::new(&path)
-        .into_iter()
-        .map(|entry| {
-            entry.unwrap_or_else(|err| {
-                println!("Error: {}", err);
-                std::process::exit(1);
-            })
-        })
-        .filter(|entry| entry.file_type().is_file())
-        .map(|entry| {
-            entry
-                .path()
-                .to_str()
-                .expect("Filename not UTF-8")
-                .to_owned()
-        })
-        .collect::<Vec<_>>()
+fn get_all_files(path: &str, query: &String) -> Vec<StringFile> {
+    let mut file_with_query = Vec::new();
+    for line in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+        if line.file_type().is_file() {
+            let file_path = line.path().to_str().unwrap_or_default();
+            get_all_lines_with_query(&file_path.to_string(), query, &mut file_with_query);
+        }
+    }
+    file_with_query
 }
