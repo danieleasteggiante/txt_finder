@@ -8,9 +8,23 @@ struct StringFile {
     contents: Vec<String>,
 }
 
+fn get_command() -> (String, String) {
+    let args: Vec<String> = args().collect();
+    if args.len() < 3 {
+        println!("Usage: {} <path> <query>", args[0]);
+        return;
+    }
+    let path = &args[1];
+    let query = &args[2];
+    if path.is_empty() || query.is_empty() {
+        println!("Path and query cannot be empty");
+        return;
+    }
+    (path.to_string(), query.to_string())
+}
+
 fn main() {
-    let path = args().nth(1).expect("No query given").trim().to_owned();
-    let query = args().nth(2).expect("No query given").trim().to_owned();
+    let (path, query) = get_command();
     let all_file = get_all_files(&path);
     let files_with_query = get_all_files_with_query(&all_file, &query);
     print_files(&files_with_query);
