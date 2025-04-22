@@ -4,6 +4,7 @@ use std::env::args;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use colored::Colorize;
 use string_file::StringFile;
 use walkdir::WalkDir;
 use crate::string_file::LineNr;
@@ -38,9 +39,9 @@ fn main() {
 
 fn print_files(files: &[StringFile]) {
     for file in files {
-        println!("File: {}", file.path);
+        println!("{}", format!("File: {}", file.path).white().bold());
         for line in &file.contents {
-            println!("\t {}", line);
+            println!("\t {}", format!("{}", line).green());
         }
     }
 }
