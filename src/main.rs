@@ -1,40 +1,65 @@
 mod string_file;
 
 use std::env::args;
-use std::fmt::Display;
+use std::fmt::{format, Display};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
+use atty::Stream;
 use colored::Colorize;
 use string_file::StringFile;
 use walkdir::WalkDir;
 use crate::string_file::LineNr;
 
-fn get_command() -> (String, String) {
-    let args: Vec<String> = args().collect();
-    if args.len() < 3 {
-        println!("Usage: {} <path> <query>", args[0]);
-        std::process::exit(1);
+
+fn get_command() -> (String, String, bool) {
+    if atty::is(Stream::Stdin) {
+        return get_from_args()
     }
-    let path = &args[1];
-    let query = &args[2];
-    if path.is_empty() || query.is_empty() {
-        println!("Path and query cannot be empty");
-        std::process::exit(1);
-    }
-    (path.to_string(), query.to_string())
+    get_from_stint()
 }
 
-fn mock_get_command() -> (String, String) {
-    let path = "/home/daniele/Documenti/APPDEV/txt_finder/test";
-    let query = "Lorem Ipsum";
-    (path.to_string(), query.to_string())
+fn get_from_stint() -> (String, String, bool) { 
+    let stdin = io::stdin();
+    let input: Vec<String> = stdin.lock().lines().filter_map(Result::ok).collect();
+    if input.is_empty() {
+        println!("No input provided via pipe");
+        std::process::exit(1);
+    }
+    let query = args().skip(1).next().unwrap_or_default();
+    (input.join("\n"), query.to_string(), true)
 }
+ fn get_from_args() -> (String, String, bool) {
+     let args: Vec<String> = args().collect();
+     if args.len() < 3 {
+         panic!("Usage: {} <path> <query>", args[0]);
+     }
+     let path = &args[1];
+     let query = &args[2];
+     (path.to_string(), query.to_string(), false)
+ }
 
 fn main() {
-    // let (path, query) = get_command();
-    let (path, query) = mock_get_command();
-    let files_with_query = get_all_files(&path, &query);
-    print_files(&files_with_query);
+    let (input, query, is_stin) = get_command();
+    let result = match is_stin {
+        true => find_query_in_stin(&input, &query),
+        false => get_all_files(&input, &query) 
+    };    
+    print_files(&result);
+}
+
+fn find_query_in_stin(input: &String, query: &String) -> Vec<StringFile> {
+    let mut result: Vec<StringFile> = Vec::new();
+    let mut string_file: Vec<LineNr> = Vec::new();
+    let mut index = 0;
+    for line in input.split("\n") {
+        collect_lines(&mut string_file, &line.to_string(), query, index);
+        index += 1;
+    }
+    result.push(StringFile {
+        path: "stdin".to_string(),
+        contents: string_file,
+    });
+    result
 }
 
 fn print_files(files: &[StringFile]) {
@@ -52,8 +77,11 @@ fn get_all_lines_with_query(file_path: &String, query: &str, string_file_list: &
     let reader = BufReader::new(file);
     let mut index = 0;
     for line in reader.lines() {
-        collect_lines(&mut string_file, &line.unwrap_or_else(|err| String::new()), query, index);
+        collect_lines(&mut string_file, &line.unwrap_or_else(|_| String::new()), query, index);
         index += 1;
+    }
+    if string_file.is_empty() {
+        return;
     }
     string_file_list.push(StringFile {
         path: file_path.clone(),
@@ -62,13 +90,19 @@ fn get_all_lines_with_query(file_path: &String, query: &str, string_file_list: &
 }
 
 fn collect_lines(string_file: &mut Vec<LineNr>, line: &String, query: &str, index: usize) {
-    if !line.to_lowercase().contains(query.to_lowercase().as_str()) {
-        return;
+    if let Some(start) = line.to_lowercase().find(&query.to_lowercase()) {
+        let end = start + query.len();
+        let highlighted_line = format!(
+            "{}{}{}",
+            &line[..start],
+            &line[start..end].red().bold(),
+            &line[end..]
+        );
+        string_file.push(LineNr {
+            line: highlighted_line,
+            number: index,
+        });
     }
-    string_file.push(LineNr {
-        line: line.clone(),
-        number: index,
-    });
 }
 
 fn get_all_files(path: &str, query: &String) -> Vec<StringFile> {
