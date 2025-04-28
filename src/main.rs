@@ -56,7 +56,7 @@ fn find_query_in_stin(input: &String, query: &String) -> Vec<StringFile> {
         index += 1;
     }
     result.push(StringFile {
-        path: "stdin".to_string(),
+        path: "pipe".to_string(),
         contents: string_file,
     });
     result
