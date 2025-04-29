@@ -38,6 +38,11 @@ fn get_from_stint() -> (String, String, bool) {
      (path.to_string(), query.to_string(), false)
  }
 
+fn java_api(input: &String, query: &String) -> Vec<StringFile> {
+    let result = get_all_files(input, query);
+    result
+}
+
 fn main() {
     let (input, query, is_stin) = get_command();
     let result = match is_stin {
